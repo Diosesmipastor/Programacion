@@ -62,14 +62,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <input type="password" name="password" placeholder="Contraseña" required>
             </div>
 
-            <div class="input-group">
-                <label>Nivel</label>
-                <select name="nivel" required>
-                    <option value="usuario" selected>Usuario</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-
             <button>Registrar</button>
 
             <div id="msg" class="msg"><?= $mensaje ?></div>
