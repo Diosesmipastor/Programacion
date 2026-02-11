@@ -2,7 +2,14 @@
 include "features/users/auth.php";
 include "db.php";
 
-$productos = $conn->query("SELECT * FROM products ORDER BY id DESC LIMIT 5");
+try {
+    $stmt = $conn->prepare("SELECT * FROM products ORDER BY id DESC LIMIT 5");
+    $stmt->execute();
+    $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Error al obtener productos.");
+}
+
 $carrito = $_SESSION['cart'] ?? [];
 ?>
 
@@ -22,8 +29,8 @@ $carrito = $_SESSION['cart'] ?? [];
         <div class="sidebar" id="sidebar">
             <div class="profile">
                 <i data-lucide="user" class="profile-icon"></i>
-                <p class="username"><?= $_SESSION["user"] ?></p>
-                <p class="role"><?= ucfirst($_SESSION["nivel"]) ?></p>
+                <p class="username"><?= htmlspecialchars($_SESSION["user"]) ?></p>
+                <p class="role"><?= ucfirst(htmlspecialchars($_SESSION["nivel"])) ?></p>
             </div>
             <nav>
                 <a href="#welcome" class="nav-link"><i data-lucide="home"></i> Inicio</a>
@@ -44,13 +51,13 @@ $carrito = $_SESSION['cart'] ?? [];
 
             <section id="welcome" class="card1 centered-card">
                 <i data-lucide="smile" class="section-icon"></i>
-                <h2>Bienvenid@, <?= $_SESSION["user"] ?></h2>
+                <h2>Bienvenid@, <?= htmlspecialchars($_SESSION["user"]) ?></h2>
             </section>
 
             <section id="productos" class="card1">
                 <h2><i data-lucide="package"></i> Productos Recientes</h2>
 
-                <?php if ($productos->num_rows > 0): ?>
+                <?php if (count($productos) > 0): ?>
                     <table class="table-modern">
                         <thead>
                             <tr>
@@ -61,22 +68,28 @@ $carrito = $_SESSION['cart'] ?? [];
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($p = $productos->fetch_assoc()): ?>
+                            <?php foreach ($productos as $p): ?>
                                 <tr>
-                                    <td><?= $p['nombre'] ?></td>
-                                    <td><a href="features/productos/vista.php?codigo=<?= $p['codigo'] ?>"><?= $p['codigo'] ?></a></td>
+                                    <td><?= htmlspecialchars($p['nombre']) ?></td>
+                                    <td>
+                                        <a href="features/productos/vista.php?codigo=<?= urlencode($p['codigo']) ?>">
+                                            <?= htmlspecialchars($p['codigo']) ?>
+                                        </a>
+                                    </td>
                                     <td>$<?= number_format($p['precio'], 2) ?></td>
                                     <td class="actions-cell">
                                         <?php if ($_SESSION["nivel"] === "admin"): ?>
                                             <a href="features/productos/crear.php" class="btn-add"><i data-lucide="plus-circle"></i></a>
-                                            <a href="features/productos/editar.php?codigo=<?= $p['codigo'] ?>" class="btn-edit"><i data-lucide="edit-3"></i></a>
-                                            <a href="features/productos/eliminar.php?codigo=<?= $p['codigo'] ?>" class="btn-remove"><i data-lucide="trash-2"></i></a>
+                                            <a href="features/productos/editar.php?codigo=<?= urlencode($p['codigo']) ?>" class="btn-edit"><i data-lucide="edit-3"></i></a>
+                                            <a href="features/productos/eliminar.php?codigo=<?= urlencode($p['codigo']) ?>" class="btn-remove"><i data-lucide="trash-2"></i></a>
                                         <?php else: ?>
-                                            <a href="features/cart/añadir.php?codigo=<?= $p['codigo'] ?>" class="btn-add">Añadir <i data-lucide="shopping-cart"></i></a>
+                                            <a href="features/cart/añadir.php?codigo=<?= urlencode($p['codigo']) ?>" class="btn-add">
+                                                Añadir <i data-lucide="shopping-cart"></i>
+                                            </a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 <?php else: ?>
@@ -92,29 +105,25 @@ $carrito = $_SESSION['cart'] ?? [];
                     echo "<p>Debes iniciar sesión para ver el carrito.</p>";
                 } else {
                     $stmt = $conn->prepare("SELECT id FROM users WHERE nombre = ?");
-                    $stmt->bind_param("s", $_SESSION['user']);
-                    $stmt->execute();
-                    $stmt->bind_result($user_id);
+                    $stmt->execute([$_SESSION['user']]);
+                    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                    if (!$stmt->fetch()) {
+                    if (!$user) {
                         echo "<p>Usuario no encontrado.</p>";
                     } else {
-                        $stmt->close();
-
                         $stmt = $conn->prepare("
-                        SELECT p.nombre, p.codigo, p.precio, c.cantidad
-                        FROM cart c
-                        JOIN products p ON c.product_id = p.id
-                        WHERE c.user_id = ?
-                    ");
-                        $stmt->bind_param("i", $user_id);
-                        $stmt->execute();
-                        $result = $stmt->get_result();
+                            SELECT p.nombre, p.codigo, p.precio, c.cantidad
+                            FROM cart c
+                            JOIN products p ON c.product_id = p.id
+                            WHERE c.user_id = ?
+                        ");
+                        $stmt->execute([$user['id']]);
+                        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-                        if ($result->num_rows > 0) {
+                        if (count($items) > 0) {
                             $total = 0;
                             echo '<ul class="cart-list">';
-                            while ($item = $result->fetch_assoc()) {
+                            foreach ($items as $item) {
                                 $subtotal = $item['precio'] * $item['cantidad'];
                                 $total += $subtotal;
                                 echo '<li>';
@@ -167,17 +176,6 @@ $carrito = $_SESSION['cart'] ?? [];
                 if (link.getAttribute('href') === '#' + current) link.classList.add('active');
             });
         });
-
-        const searchInput = document.getElementById('searchInput');
-        const rows = document.querySelectorAll('#productosTable tr');
-        if (searchInput) {
-            searchInput.addEventListener('keyup', () => {
-                const value = searchInput.value.toLowerCase();
-                rows.forEach(row => {
-                    row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
-                });
-            });
-        }
     </script>
 
 </body>

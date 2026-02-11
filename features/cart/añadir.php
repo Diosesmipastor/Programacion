@@ -2,7 +2,6 @@
 include "../../db.php";
 include "../users/auth.php";
 
-
 if (!isset($_SESSION['user'])) {
     die("Debes iniciar sesión para agregar productos al carrito.");
 }
@@ -13,39 +12,30 @@ if (!isset($_GET['codigo'])) {
 
 $codigo = $_GET['codigo'];
 
-$stmt = $conn->prepare("SELECT id FROM users WHERE nombre = ?");
-$stmt->bind_param("s", $_SESSION['user']);
-$stmt->execute();
-$stmt->bind_result($user_id);
-if (!$stmt->fetch()) {
+$stmt = $conn->prepare("SELECT id FROM users WHERE nombre = :nombre");
+$stmt->execute(['nombre' => $_SESSION['user']]);
+$user_id = $stmt->fetchColumn();
+if (!$user_id) {
     die("Usuario no encontrado");
 }
-$stmt->close();
 
-$stmt = $conn->prepare("SELECT id FROM products WHERE codigo = ?");
-$stmt->bind_param("s", $codigo);
-$stmt->execute();
-$stmt->bind_result($product_id);
-if (!$stmt->fetch()) {
+$stmt = $conn->prepare("SELECT id FROM products WHERE codigo = :codigo");
+$stmt->execute(['codigo' => $codigo]);
+$product_id = $stmt->fetchColumn();
+if (!$product_id) {
     die("Producto no encontrado");
 }
-$stmt->close();
 
-$stmt = $conn->prepare("SELECT id, cantidad FROM cart WHERE user_id = ? AND product_id = ?");
-$stmt->bind_param("ii", $user_id, $product_id);
-$stmt->execute();
-$stmt->bind_result($cart_id, $cantidad);
+$stmt = $conn->prepare("SELECT id, cantidad FROM cart WHERE user_id = :user_id AND product_id = :product_id");
+$stmt->execute(['user_id' => $user_id, 'product_id' => $product_id]);
+$cart = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if ($stmt->fetch()) {
-    $stmt->close();
-    $stmt = $conn->prepare("UPDATE cart SET cantidad = cantidad + 1 WHERE id = ?");
-    $stmt->bind_param("i", $cart_id);
-    $stmt->execute();
+if ($cart) {
+    $stmt = $conn->prepare("UPDATE cart SET cantidad = cantidad + 1 WHERE id = :id");
+    $stmt->execute(['id' => $cart['id']]);
 } else {
-    $stmt->close();
-    $stmt = $conn->prepare("INSERT INTO cart (user_id, product_id, cantidad) VALUES (?,?,1)");
-    $stmt->bind_param("ii", $user_id, $product_id);
-    $stmt->execute();
+    $stmt = $conn->prepare("INSERT INTO cart (user_id, product_id, cantidad) VALUES (:user_id, :product_id, 1)");
+    $stmt->execute(['user_id' => $user_id, 'product_id' => $product_id]);
 }
 
 header("Location: ../../index.php#carrito");

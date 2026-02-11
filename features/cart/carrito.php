@@ -28,26 +28,22 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT id FROM users WHERE nombre = ?");
-$stmt->bind_param("s", $_SESSION['user']);
-$stmt->execute();
-$stmt->bind_result($user_id);
-
-if (!$stmt->fetch()) {
+$stmt = $conn->prepare("SELECT id FROM users WHERE nombre = :nombre");
+$stmt->execute(['nombre' => $_SESSION['user']]);
+$user_id = $stmt->fetchColumn();
+if (!$user_id) {
     echo "<div class='alert alert-danger'>Usuario no encontrado</div>";
     exit;
 }
-$stmt->close();
 
 $stmt = $conn->prepare("
     SELECT p.nombre, p.precio, p.codigo, c.cantidad
     FROM cart c
     INNER JOIN products p ON c.product_id = p.id
-    WHERE c.user_id = ?
+    WHERE c.user_id = :user_id
 ");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
+$stmt->execute(['user_id' => $user_id]);
+$cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $total = 0;
 ?>
 
@@ -63,7 +59,6 @@ $total = 0;
 
 <body>
     <div class="dashboard-container">
-
         <div class="sidebar">
             <div class="profile">
                 <i data-lucide="user"></i>
@@ -90,7 +85,7 @@ $total = 0;
                     <?php unset($_SESSION['msg']); ?>
                 <?php endif; ?>
 
-                <?php if ($result->num_rows > 0): ?>
+                <?php if ($cart_items): ?>
                     <table class="table-modern">
                         <thead>
                             <tr>
@@ -102,25 +97,25 @@ $total = 0;
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($row = $result->fetch_assoc()):
-                                $subtotal = $row['precio'] * $row['cantidad'];
+                            <?php foreach ($cart_items as $item):
+                                $subtotal = $item['precio'] * $item['cantidad'];
                                 $total += $subtotal;
                             ?>
                                 <tr>
-                                    <td><?= htmlspecialchars($row['nombre']) ?></td>
-                                    <td>$<?= number_format($row['precio'], 2) ?></td>
-                                    <td><?= $row['cantidad'] ?></td>
+                                    <td><?= htmlspecialchars($item['nombre']) ?></td>
+                                    <td>$<?= number_format($item['precio'], 2) ?></td>
+                                    <td><?= $item['cantidad'] ?></td>
                                     <td>$<?= number_format($subtotal, 2) ?></td>
                                     <td>
-                                        <a href="remover.php?codigo=<?= urlencode($row['codigo']) ?>" class="btn-remove" onclick="return confirm('¿Eliminar este producto?')">
+                                        <a href="remover.php?codigo=<?= urlencode($item['codigo']) ?>" class="btn-remove" onclick="return confirm('¿Eliminar este producto?')">
                                             <i data-lucide="trash-2"></i>
                                         </a>
-                                        <a href="añadir.php?codigo=<?= urlencode($row['codigo']) ?>" class="btn-add">
+                                        <a href="añadir.php?codigo=<?= urlencode($item['codigo']) ?>" class="btn-add">
                                             <i data-lucide="shopping-cart"></i>
                                         </a>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
 

@@ -13,15 +13,21 @@ if (!isset($_GET['codigo'])) {
 $codigo = $_GET['codigo'];
 $mensaje = "";
 
-$stmt = $conn->prepare("SELECT nombre, precio, descripcion FROM products WHERE codigo = ?");
-$stmt->bind_param("s", $codigo);
-$stmt->execute();
-$stmt->bind_result($nombre, $precio, $descripcion);
+try {
+    $stmt = $conn->prepare("SELECT nombre, precio, descripcion FROM products WHERE codigo = :codigo");
+    $stmt->execute(['codigo' => $codigo]);
+    $producto = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$stmt->fetch()) {
-    die("Producto no encontrado.");
+    if (!$producto) {
+        die("Producto no encontrado.");
+    }
+
+    $nombre = $producto['nombre'];
+    $precio = $producto['precio'];
+    $descripcion = $producto['descripcion'];
+} catch (PDOException $e) {
+    die("Error al obtener producto: " . $e->getMessage());
 }
-$stmt->close();
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $nombre = trim($_POST["nombre"]);
@@ -31,12 +37,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($nombre && $precio > 0) {
         $stmt = $conn->prepare("
             UPDATE products 
-            SET nombre = ?, precio = ?, descripcion = ?
-            WHERE codigo = ?
+            SET nombre = :nombre, precio = :precio, descripcion = :descripcion
+            WHERE codigo = :codigo
         ");
-        $stmt->bind_param("sdss", $nombre, $precio, $descripcion, $codigo);
+        $ejecutado = $stmt->execute([
+            'nombre' => $nombre,
+            'precio' => $precio,
+            'descripcion' => $descripcion,
+            'codigo' => $codigo
+        ]);
 
-        if ($stmt->execute()) {
+        if ($ejecutado) {
             header("Location: lista.php");
             exit;
         } else {
@@ -66,27 +77,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <p><?= $_SESSION['user'] ?></p>
                 <p class="role"><?= ucfirst($_SESSION['nivel']) ?></p>
             </div>
-
             <nav>
-                <a href="../../index.php#welcome" class="nav-link">
-                    <i data-lucide="home"></i> Inicio
-                </a>
-                <a href="lista.php" class="nav-link active">
-                    <i data-lucide="list"></i> Productos
-                </a>
-                <a href="../cart/carrito.php" class="nav-link">
-                    <i data-lucide="shopping-cart"></i> Carrito
-                </a>
-                <a href="../users/logout.php" class="btn-logout">
-                    <i data-lucide="log-out"></i> Cerrar sesión
-                </a>
+                <a href="../../index.php#welcome" class="nav-link"><i data-lucide="home"></i> Inicio</a>
+                <a href="lista.php" class="nav-link active"><i data-lucide="list"></i> Productos</a>
+                <a href="../cart/carrito.php" class="nav-link"><i data-lucide="shopping-cart"></i> Carrito</a>
+                <a href="../users/logout.php" class="btn-logout"><i data-lucide="log-out"></i> Cerrar sesión</a>
             </nav>
         </aside>
 
         <main class="main-content centered-main">
             <section class="card centered-card">
                 <h2><i data-lucide="edit-3"></i> Editar Producto</h2>
-
                 <?php if ($mensaje): ?>
                     <p class="msg error"><?= $mensaje ?></p>
                 <?php endif; ?>
@@ -107,10 +108,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <textarea name="descripcion"><?= htmlspecialchars($descripcion) ?></textarea>
                     </div>
 
-                    <button class="btn-primary">
-                        <i data-lucide="save"></i> Guardar Cambios
-                    </button>
-
+                    <button class="btn-primary"><i data-lucide="save"></i> Guardar Cambios</button>
                     <a href="lista.php" class="btn-secondary">Cancelar</a>
                 </form>
             </section>

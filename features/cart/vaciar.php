@@ -2,25 +2,19 @@
 include "../../db.php";
 include "../users/auth.php";
 
-
 if (!isset($_SESSION['user'])) {
     die("Debes iniciar sesión para vaciar el carrito.");
 }
 
-$stmt = $conn->prepare("SELECT id FROM users WHERE nombre = ?");
-$stmt->bind_param("s", $_SESSION['user']);
-$stmt->execute();
-$stmt->bind_result($user_id);
-if (!$stmt->fetch()) {
+$stmt = $conn->prepare("SELECT id FROM users WHERE nombre = :nombre");
+$stmt->execute(['nombre' => $_SESSION['user']]);
+$user_id = $stmt->fetchColumn();
+if (!$user_id) {
     die("Usuario no encontrado");
 }
-$stmt->close();
 
-$stmt = $conn->prepare("DELETE FROM cart WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$stmt->close();
-
+$stmt = $conn->prepare("DELETE FROM cart WHERE user_id = :user_id");
+$stmt->execute(['user_id' => $user_id]);
 
 header("Location: ../../index.php#carrito");
 exit;

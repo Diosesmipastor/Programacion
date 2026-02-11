@@ -4,18 +4,21 @@ include "../users/auth.php";
 
 $search = trim($_GET['q'] ?? '');
 
-if ($search) {
-    $stmt = $conn->prepare(
-        "SELECT * FROM products 
-         WHERE nombre LIKE ? OR codigo LIKE ? 
-         ORDER BY id DESC"
-    );
-    $like = "%$search%";
-    $stmt->bind_param("ss", $like, $like);
-    $stmt->execute();
-    $result = $stmt->get_result();
-} else {
-    $result = $conn->query("SELECT * FROM products ORDER BY id DESC");
+try {
+    if ($search) {
+        $stmt = $conn->prepare(
+            "SELECT * FROM products 
+             WHERE nombre ILIKE :search OR codigo ILIKE :search
+             ORDER BY id DESC"
+        );
+        $stmt->execute(['search' => "%$search%"]);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $stmt = $conn->query("SELECT * FROM products ORDER BY id DESC");
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+} catch (PDOException $e) {
+    die("Error al obtener productos: " . $e->getMessage());
 }
 ?>
 
@@ -37,43 +40,27 @@ if ($search) {
                 <p class="username"><?= $_SESSION["user"] ?></p>
                 <p class="role"><?= $_SESSION["nivel"] ?></p>
             </div>
-
             <nav>
-                <a href="../../index.php#welcome" class="nav-link">
-                    <i data-lucide="home"></i> Bienvenida
-                </a>
-                <a href="lista.php" class="nav-link active">
-                    <i data-lucide="list"></i> Productos
-                </a>
-                <a href="../cart/carrito.php" class="nav-link">
-                    <i data-lucide="shopping-cart"></i> Carrito
-                </a>
+                <a href="../../index.php#welcome" class="nav-link"><i data-lucide="home"></i> Bienvenida</a>
+                <a href="lista.php" class="nav-link active"><i data-lucide="list"></i> Productos</a>
+                <a href="../cart/carrito.php" class="nav-link"><i data-lucide="shopping-cart"></i> Carrito</a>
                 <?php if ($_SESSION["nivel"] === "admin"): ?>
-                    <a href="crear.php" class="nav-link">
-                        <i data-lucide="plus-square"></i> Crear Producto
-                    </a>
+                    <a href="crear.php" class="nav-link"><i data-lucide="plus-square"></i> Crear Producto</a>
                 <?php endif; ?>
-                <a href="../users/logout.php" class="btn-logout">
-                    <i data-lucide="log-out"></i> Cerrar sesión
-                </a>
+                <a href="../users/logout.php" class="btn-logout"><i data-lucide="log-out"></i> Cerrar sesión</a>
             </nav>
         </aside>
 
         <main class="main-content centered-main">
             <form method="GET" class="search">
                 <i data-lucide="search"></i>
-                <input
-                    type="text"
-                    name="q"
-                    placeholder="Buscar productos..."
-                    value="<?= htmlspecialchars($search) ?>"
-                    autocomplete="off">
+                <input type="text" name="q" placeholder="Buscar productos..." value="<?= htmlspecialchars($search) ?>" autocomplete="off">
             </form>
 
             <section class="card centered-card wide-card">
                 <h2><i data-lucide="list"></i> Lista de Productos</h2>
 
-                <?php if ($result->num_rows > 0): ?>
+                <?php if (count($result) > 0): ?>
                     <table class="table-modern">
                         <thead>
                             <tr>
@@ -84,18 +71,14 @@ if ($search) {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($row = $result->fetch_assoc()): ?>
+                            <?php foreach ($result as $row): ?>
                                 <tr>
                                     <td><?= htmlspecialchars($row['nombre']) ?></td>
-                                    <td>
-                                        <a href="vista.php?codigo=<?= $row['codigo'] ?>" class="link-primary">
-                                            <?= $row['codigo'] ?>
-                                        </a>
-                                    </td>
+                                    <td><a href="vista.php?codigo=<?= $row['codigo'] ?>" class="link-primary"><?= $row['codigo'] ?></a></td>
                                     <td>$<?= number_format($row['precio'], 2) ?></td>
                                     <td><?= $row['descripcion'] ?: '—' ?></td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 <?php else: ?>
@@ -103,9 +86,7 @@ if ($search) {
                 <?php endif; ?>
 
                 <?php if ($_SESSION["nivel"] === "admin"): ?>
-                    <a href="crear.php" class="btn-primary mt-20">
-                        <i data-lucide="plus-circle"></i> Crear Producto
-                    </a>
+                    <a href="crear.php" class="btn-primary mt-20"><i data-lucide="plus-circle"></i> Crear Producto</a>
                 <?php endif; ?>
             </section>
         </main>
@@ -119,11 +100,9 @@ if ($search) {
                 if (href.startsWith('#')) {
                     e.preventDefault();
                     const target = document.querySelector(href);
-                    if (target) {
-                        target.scrollIntoView({
-                            behavior: 'smooth'
-                        });
-                    }
+                    if (target) target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
                 }
             });
         });
