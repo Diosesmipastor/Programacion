@@ -27,10 +27,10 @@ $carrito = $_SESSION['cart'] ?? [];
             </div>
             <nav>
                 <a href="#welcome" class="nav-link"><i data-lucide="home"></i> Inicio</a>
-                <a href="/Carrito/features/productos/lista.php" class="nav-link"><i data-lucide="list"></i> Productos</a>
-                <a href="/Carrito/features/cart/carrito.php" class="nav-link"><i data-lucide="shopping-cart"></i> Carrito</a>
+                <a href="/features/productos/lista.php" class="nav-link"><i data-lucide="list"></i> Productos</a>
+                <a href="/features/cart/carrito.php" class="nav-link"><i data-lucide="shopping-cart"></i> Carrito</a>
                 <?php if ($_SESSION["nivel"] === "admin"): ?>
-                    <a href="/Carrito/features/productos/crear.php" class="nav-link"><i data-lucide="plus-square"></i> Crear Producto</a>
+                    <a href="/features/productos/crear.php" class="nav-link"><i data-lucide="plus-square"></i> Crear Producto</a>
                 <?php endif; ?>
                 <a href="features/users/logout.php" class="btn-logout"><i data-lucide="log-out"></i> Cerrar sesión</a>
             </nav>
