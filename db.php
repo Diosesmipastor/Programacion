@@ -1,6 +1,12 @@
 <?php
-$conn = new mysqli("localhost", "root", "", "compras");
+
+$host = getenv("DB_HOST") ?: "localhost";
+$user = getenv("DB_USER") ?: "root";
+$pass = getenv("DB_PASS") ?: "";
+$db   = getenv("DB_NAME") ?: "compras";
+
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
-    die();
+    die("Error de conexión");
 }
